@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Чат с Mobius — Монохром</title>
+  <title>ЧMobius AI</title>
   <!-- Highlight.js (стили монохромной темной схемы) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
   <style>
@@ -68,11 +68,10 @@
     header, footer, .toolbar {
       position: relative;
       z-index: 2;
-      background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0));
+      background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 10px 12px;
-      backdrop-filter: blur(10px) saturate(110%);
       box-shadow: var(--glow);
     }
 
@@ -88,9 +87,10 @@
     .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); backdrop-filter: blur(2px); opacity: 0; visibility: hidden; transition: .2s; z-index: 10; }
     .sidebar-overlay.open { opacity: 1; visibility: visible; }
 
-    .sidebar { position: fixed; top: 0; left: 0; height: 100vh; width: 320px; background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0)); border-right: 1px solid var(--border); transform: translateX(-100%); transition: transform .25s ease; z-index: 11; padding: 12px; backdrop-filter: blur(12px); box-shadow: var(--glow); display: grid; grid-template-rows: auto auto 1fr; gap: 10px; }
-    .sidebar.open { transform: translateX(0); }
+    .sidebar { position: fixed; top: 0; left: 0; height: 100vh; width: 320px; background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0)); border-right: 1px solid var(--border); transform: translateX(calc(-100% - 4px)); opacity: 0; pointer-events: none; transition: transform .25s ease, opacity .2s ease; z-index: 11; padding: 12px; box-shadow: var(--glow); display: grid; grid-template-rows: auto auto 1fr; gap: 10px; }
+    .sidebar.open { transform: translateX(0); opacity: 1; pointer-events: auto; }
     .sidebar h3 { margin: 0; font-size: 16px; color: var(--accent-strong); }
+    .sidebar[hidden] { display: none !important; }
     .sidebar .side-actions { display: flex; gap: 8px; }
     .sidebar button { flex: 1 1 auto; }
     .chat-list { overflow: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); padding: 6px; display: grid; gap: 6px; }
@@ -200,7 +200,7 @@
     .spinner { width: 54px; height: 54px; border: 3px solid rgba(255,255,255,0.12); border-top-color: rgba(255,255,255,0.6); border-radius: 50%; animation: spin 0.9s linear infinite; box-shadow: var(--glow); }
     @keyframes spin { to { transform: rotate(360deg); } }
     /* Settings modal */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); backdrop-filter: blur(2px); opacity: 0; visibility: hidden; transition: .2s; z-index: 120; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); opacity: 0; visibility: hidden; transition: .2s; z-index: 120; }
     .modal-overlay.open { opacity: 1; visibility: visible; }
     .modal { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 121; opacity: 0; transition: opacity .2s ease; }
     .modal.open { opacity: 1; pointer-events: auto; }
@@ -250,7 +250,7 @@
 
   <!-- Полупрозрачная подложка для бокового меню -->
   <div id="sideOverlay" class="sidebar-overlay"></div>
-  <aside id="sidebar" class="sidebar" aria-label="Список чатов">
+  <aside id="sidebar" class="sidebar" aria-label="Список чатов" hidden>
     <h3>Чаты</h3>
     <div class="side-actions">
       <button id="openSettingsBtn" class="btn-ghost">Настройки</button>
@@ -282,7 +282,7 @@
 
   <footer>
     <div class="hint">
-      Эндпоинт: https://llm.chutes.ai/v1/chat/completions (stream=true). Заголовок Authorization: Bearer &lt;CHUTES_API_TOKEN&gt;.
+        made by @Sceleon 
     </div>
   </footer>
 
@@ -296,23 +296,7 @@
       </div>
       <div class="modal-body">
         <div class="grid-cols">
-          <div>
-            <label class="hint" for="apiToken">API токен</label>
-            <input id="apiToken" type="password" placeholder="CHUTES_API_TOKEN" aria-label="API токен" />
-            <label class="hint" style="display:flex; align-items:center; gap:8px; margin-top:6px;">
-              <input id="toggleToken" type="checkbox" /> Показать токен
-            </label>
-          </div>
-          <div>
-            <label class="hint" for="model">Модель</label>
-            <select id="model" aria-label="Модель">
-              <option value="Qwen/Qwen3-8B">Qwen/Qwen3-8B</option>
-              <option value="Qwen/Qwen2.5-7B-Instruct">Qwen/Qwen2.5-7B-Instruct</option>
-              <option value="meta-llama/Llama-3.1-8B-Instruct">meta-llama/Llama-3.1-8B-Instruct</option>
-              <option value="mistralai/Mistral-7B-Instruct-v0.3">mistralai/Mistral-7B-Instruct-v0.3</option>
-            </select>
-          </div>
-          <div class="range-wrap">
+                    <div class="range-wrap">
             <label for="temperature" class="hint" style="white-space:nowrap;">Температура: <span id="temperatureVal">0.7</span></label>
             <input id="temperature" type="range" min="0" max="2" step="0.1" value="0.7" />
           </div>
@@ -332,7 +316,7 @@
   <!-- Markdown + sanitize + highlight.js -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/common.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/build/highlight.min.js"></script>
 
   <script>
     const DEFAULT_TOKEN = 'cpk_518b94764bb9438bb39292f59acd2d46.9d53560d744755e48885754ebab98286.k0GPpJK5ZmbD5xtY5TB7zJdQL31hxuSa';
@@ -468,33 +452,38 @@
     }
 
     function setUIBusy(busy) {
-      els.send.disabled = busy; els.stop.disabled = !busy; els.input.disabled = busy; els.model.disabled = busy; els.maxTokens.disabled = busy; els.temperature.disabled = busy;
+      els.send.disabled = busy; els.stop.disabled = !busy; els.input.disabled = busy;
+      if (els.model) els.model.disabled = busy;
+      if (els.maxTokens) els.maxTokens.disabled = busy;
+      if (els.temperature) els.temperature.disabled = busy;
     }
 
     // Settings
     function loadSettings() {
-      let saved = localStorage.getItem(STORAGE_SETTINGS_KEY);
-      if (saved) {
-        try {
-          const { token, model, temperature, maxTokens } = JSON.parse(saved);
-          if (token) els.token.value = token; else els.token.value = DEFAULT_TOKEN; // предзаполняем
-          if (model) els.model.value = model;
-          if (typeof temperature === 'number') { els.temperature.value = String(temperature); els.temperatureVal.textContent = Number(temperature).toFixed(1); }
-          if (maxTokens) els.maxTokens.value = maxTokens;
-        } catch { els.token.value = DEFAULT_TOKEN; }
-      } else {
-        // Нет сохранений — применяем токен по умолчанию и сохраняем
-        els.token.value = DEFAULT_TOKEN;
-        saveSettings();
+      let savedRaw = localStorage.getItem(STORAGE_SETTINGS_KEY);
+      let saved = {};
+      try { if (savedRaw) saved = JSON.parse(savedRaw) || {}; } catch {}
+      const token = saved.token || DEFAULT_TOKEN;
+      const model = saved.model || 'Qwen/Qwen3-8B';
+      if (els.token) els.token.value = token;
+      if (els.model) els.model.value = model;
+      if (typeof saved.temperature === 'number' && els.temperature) {
+        els.temperature.value = String(saved.temperature);
+        if (els.temperatureVal) els.temperatureVal.textContent = Number(saved.temperature).toFixed(1);
+      }
+      if (saved.maxTokens && els.maxTokens) els.maxTokens.value = saved.maxTokens;
+      if (!savedRaw) {
+        localStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify({ token, model, temperature: parseFloat(els?.temperature?.value) || 0.7, maxTokens: parseInt(els?.maxTokens?.value, 10) || 1024 }));
       }
     }
 
     function saveSettings() {
+      const prev = (() => { try { return JSON.parse(localStorage.getItem(STORAGE_SETTINGS_KEY) || '{}'); } catch { return {}; } })();
       const obj = {
-        token: els.token.value.trim(),
-        model: els.model.value,
-        temperature: parseFloat(els.temperature.value),
-        maxTokens: parseInt(els.maxTokens.value, 10) || 1024,
+        token: els.token ? els.token.value.trim() : (prev.token || DEFAULT_TOKEN),
+        model: els.model ? els.model.value : (prev.model || 'Qwen/Qwen3-8B'),
+        temperature: els.temperature ? parseFloat(els.temperature.value) : (typeof prev.temperature === 'number' ? prev.temperature : 0.7),
+        maxTokens: els.maxTokens ? (parseInt(els.maxTokens.value, 10) || 1024) : (prev.maxTokens || 1024),
       };
       localStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify(obj));
       setStatus('Настройки сохранены', 1200);
@@ -594,7 +583,8 @@
 
     // Messaging
     async function sendMessage() {
-      const token = els.token.value.trim();
+      const saved = (() => { try { return JSON.parse(localStorage.getItem(STORAGE_SETTINGS_KEY) || '{}'); } catch { return {}; } })();
+      const token = (els.token && els.token.value.trim()) || saved.token || DEFAULT_TOKEN;
       if (!token) { setStatus('Укажите токен', 2000); return; }
 
       const content = els.input.value.trim();
@@ -615,7 +605,7 @@
       renderChatList();
 
       const payload = {
-        model: els.model.value || 'Qwen/Qwen3-8B',
+        model: (els.model && els.model.value) || saved.model || 'Qwen/Qwen3-8B',
         messages: chat.messages.map(m => ({ role: m.role, content: m.content })),
         stream: true,
         max_tokens: parseInt(els.maxTokens.value, 10) || 1024,
@@ -694,8 +684,26 @@
 
     // Sidebar open/close
     function openSidebar(open) {
-      if (open) { els.sidebar.classList.add('open'); els.sideOverlay.classList.add('open'); }
-      else { els.sidebar.classList.remove('open'); els.sideOverlay.classList.remove('open'); }
+      if (open) {
+        if (els.sidebar.hasAttribute('hidden')) els.sidebar.removeAttribute('hidden');
+        requestAnimationFrame(() => {
+          els.sidebar.classList.add('open');
+        });
+        els.sideOverlay.classList.add('open');
+      } else {
+        els.sidebar.classList.remove('open');
+        els.sideOverlay.classList.remove('open');
+        const onEnd = (e) => {
+          if (e.propertyName === 'transform') {
+            els.sidebar.removeEventListener('transitionend', onEnd);
+            els.sidebar.setAttribute('hidden', '');
+          }
+        };
+        els.sidebar.addEventListener('transitionend', onEnd);
+        setTimeout(() => {
+          if (!els.sidebar.classList.contains('open')) els.sidebar.setAttribute('hidden', '');
+        }, 320);
+      }
     }
 
     function openSettings(open) {
@@ -720,11 +728,11 @@
       window.addEventListener('load', () => setTimeout(() => els.loader.classList.add('hidden'), 400));
 
       // Events
-      els.saveToken.addEventListener('click', saveSettings);
-      els.model.addEventListener('change', saveSettings);
-      els.temperature.addEventListener('input', () => { els.temperatureVal.textContent = parseFloat(els.temperature.value).toFixed(1); });
-      els.temperature.addEventListener('change', saveSettings);
-      els.maxTokens.addEventListener('change', saveSettings);
+      if (els.saveToken) els.saveToken.addEventListener('click', saveSettings);
+      if (els.model) els.model.addEventListener('change', saveSettings);
+      if (els.temperature) els.temperature.addEventListener('input', () => { if (els.temperatureVal) els.temperatureVal.textContent = parseFloat(els.temperature.value).toFixed(1); });
+      if (els.temperature) els.temperature.addEventListener('change', saveSettings);
+      if (els.maxTokens) els.maxTokens.addEventListener('change', saveSettings);
 
       els.input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!els.send.disabled) sendMessage(); }
@@ -735,7 +743,7 @@
       els.stop.addEventListener('click', stopStreaming);
       els.clearChat.addEventListener('click', clearActiveChat);
 
-      els.burger.addEventListener('click', () => openSidebar(true));
+      els.burger.addEventListener('click', () => openSidebar(!els.sidebar.classList.contains('open')));
       els.sideOverlay.addEventListener('click', () => openSidebar(false));
 
       if (els.toggleToken) els.toggleToken.addEventListener('change', () => { els.token.type = els.toggleToken.checked ? 'text' : 'password'; });
@@ -743,7 +751,7 @@
       if (els.openSettingsBtn) els.openSettingsBtn.addEventListener('click', () => openSettings(true));
       if (els.settingsOverlay) els.settingsOverlay.addEventListener('click', () => openSettings(false));
       if (els.settingsClose) els.settingsClose.addEventListener('click', () => openSettings(false));
-      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') openSettings(false); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { openSettings(false); openSidebar(false); } });
 
       els.newChatBtn.addEventListener('click', () => { createNewChat(); openSidebar(false); });
       els.renameChatBtn.addEventListener('click', () => { renameActiveChat(); });
