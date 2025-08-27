@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Чат с Mobius — Монохром</title>
+  <!-- Highlight.js (стили монохромной темной схемы) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
+  <style>
+    :root {
+      /* Монохромная палитра */
+      --bg: #0a0c10;
+      --panel: rgba(18, 20, 26, 0.7);
+      --panel-2: rgba(16, 18, 24, 0.55);
+      --text: #e6e8eb;
+      --muted: #9aa2ac;
+      --accent: #d0d3d8; /* светло-серый для кнопок */
+      --accent-strong: #f1f3f5;
+      --danger: #ff7070;
+      --ok: #9be090;
+      --border: rgba(146, 154, 168, 0.25);
+      --glow: 0 0 24px rgba(255, 255, 255, 0.06), 0 0 60px rgba(255, 255, 255, 0.04);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+      padding: 12px;
+      overflow: hidden;
+    }
+
+    /* Анимированные "пузырьки" на фоне */
+    .bubbles { position: fixed; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
+    .bubbles span {
+      position: absolute;
+      bottom: -120px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.22), rgba(255,255,255,0.06) 60%, rgba(255,255,255,0.02));
+      filter: blur(0.3px);
+      opacity: 0.4;
+      animation: floatUp linear infinite;
+      box-shadow: var(--glow);
+      will-change: transform, opacity;
+    }
+    @keyframes floatUp {
+      0% { transform: translateY(0) translateX(0); opacity: 0; }
+      8% { opacity: 0.5; }
+      100% { transform: translateY(-140vh) translateX(20px); opacity: 0; }
+    }
+    /* Разные размеры/позиции пузырьков */
+    .bubbles span:nth-child(1){ left:5%; width:60px; height:60px; animation-duration: 22s; animation-delay: 0s; }
+    .bubbles span:nth-child(2){ left:15%; width:24px; height:24px; animation-duration: 18s; animation-delay: 3s; }
+    .bubbles span:nth-child(3){ left:28%; width:60px; height:60px; animation-duration: 26s; animation-delay: 2s; }
+    .bubbles span:nth-child(4){ left:42%; width:18px; height:18px; animation-duration: 14s; animation-delay: 5s; }
+    .bubbles span:nth-child(5){ left:55%; width:36px; height:36px; animation-duration: 24s; animation-delay: 1s; }
+    .bubbles span:nth-child(6){ left:66%; width:28px; height:28px; animation-duration: 17s; animation-delay: 4s; }
+    .bubbles span:nth-child(7){ left:74%; width:52px; height:52px; animation-duration: 25s; animation-delay: 0s; }
+    .bubbles span:nth-child(8){ left:82%; width:22px; height:22px; animation-duration: 15s; animation-delay: 6s; }
+    .bubbles span:nth-child(9){ left:90%; width:42px; height:42px; animation-duration: 20s; animation-delay: 2s; }
+    .bubbles span:nth-child(10){ left:35%; width:32px; height:32px; animation-duration: 19s; animation-delay: 7s; }
+
+    header, footer, .toolbar {
+      position: relative;
+      z-index: 2;
+      background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0));
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      backdrop-filter: blur(10px) saturate(110%);
+      box-shadow: var(--glow);
+    }
+
+    header { display: grid; gap: 8px; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .row > * { flex: 1 1 auto; }
+    .brand { font-weight: 700; letter-spacing: 0.3px; white-space: nowrap; }
+
+    /* Бургер и боковая панель */
+    .burger { flex: 0 0 auto; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 10px; cursor: pointer; border: 1px solid var(--border); background: var(--panel); box-shadow: var(--glow); }
+    .burger .bar { width: 20px; height: 2px; background: var(--text); box-shadow: 0 6px 0 var(--text), 0 -6px 0 var(--text); }
+
+    .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); backdrop-filter: blur(2px); opacity: 0; visibility: hidden; transition: .2s; z-index: 10; }
+    .sidebar-overlay.open { opacity: 1; visibility: visible; }
+
+    .sidebar { position: fixed; top: 0; left: 0; height: 100vh; width: 320px; background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0)); border-right: 1px solid var(--border); transform: translateX(-100%); transition: transform .25s ease; z-index: 11; padding: 12px; backdrop-filter: blur(12px); box-shadow: var(--glow); display: grid; grid-template-rows: auto auto 1fr; gap: 10px; }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar h3 { margin: 0; font-size: 16px; color: var(--accent-strong); }
+    .sidebar .side-actions { display: flex; gap: 8px; }
+    .sidebar button { flex: 1 1 auto; }
+    .chat-list { overflow: auto; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); padding: 6px; display: grid; gap: 6px; }
+    .chat-item { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; background: transparent; color: var(--text); }
+    .chat-item:hover { background: rgba(255,255,255,0.05); border-color: var(--border); }
+    .chat-item.active { background: rgba(255,255,255,0.07); border-color: var(--border); }
+    .chat-title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    input[type="text"], input[type="password"], select, textarea {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 12px;
+      outline: none;
+      width: 100%;
+      box-shadow: var(--glow);
+    }
+    input::placeholder, textarea::placeholder { color: var(--muted); }
+
+    .range-wrap { display: flex; gap: 10px; align-items: center; }
+    input[type="range"] { flex: 1; }
+
+    button {
+      background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.10));
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: transform .05s ease-in-out, filter .2s ease-in-out, background .2s;
+      box-shadow: var(--glow);
+    }
+    button:hover { filter: brightness(1.05); }
+    button:active { transform: translateY(1px); }
+
+    .btn-ghost { background: var(--panel); }
+    .btn-danger { background: linear-gradient(135deg, rgba(255,112,112,0.35), rgba(255,112,112,0.18)); border-color: rgba(255,112,112,0.35); }
+
+    .chat {
+      position: relative; z-index: 1;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0));
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      min-height: 60vh;
+      max-height: calc(100vh - 270px);
+      box-shadow: var(--glow);
+    }
+
+    .messages {
+      overflow: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scroll-behavior: smooth;
+    }
+
+    .msg {
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      gap: 10px;
+      align-items: start;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      box-shadow: var(--glow);
+    }
+
+    .avatar {
+      background: rgba(255,255,255,0.1);
+      width: 36px; height: 36px; border-radius: 8px;
+      display: grid; place-items: center; font-weight: 700; color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .avatar.user { background: rgba(255,255,255,0.06); }
+
+    .meta { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+    .text :is(pre, code) { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace; }
+    .text pre { background: rgba(255,255,255,0.04); border: 1px solid var(--border); padding: 10px; border-radius: 8px; overflow: auto; }
+    .text code { background: rgba(255,255,255,0.06); border: 1px solid var(--border); padding: 2px 6px; border-radius: 6px; }
+
+    .composer {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      padding: 12px;
+      border-top: 1px solid var(--border);
+      background: rgba(0,0,0,0.15);
+    }
+
+    textarea { resize: vertical; min-height: 60px; max-height: 220px; }
+
+    .error { color: #ffb4b4; }
+    .hint { color: var(--muted); font-size: 12px; }
+
+    /* Экран загрузки */
+    .loader-overlay { position: fixed; inset: 0; background: radial-gradient(60% 40% at 50% 40%, rgba(255,255,255,0.06), transparent 70%), var(--bg); display: grid; place-items: center; z-index: 100; transition: opacity .35s ease, visibility .35s ease; }
+    .loader-overlay.hidden { opacity: 0; visibility: hidden; }
+    .spinner { width: 54px; height: 54px; border: 3px solid rgba(255,255,255,0.12); border-top-color: rgba(255,255,255,0.6); border-radius: 50%; animation: spin 0.9s linear infinite; box-shadow: var(--glow); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* Settings modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); backdrop-filter: blur(2px); opacity: 0; visibility: hidden; transition: .2s; z-index: 120; }
+    .modal-overlay.open { opacity: 1; visibility: visible; }
+    .modal { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 121; opacity: 0; transition: opacity .2s ease; }
+    .modal.open { opacity: 1; pointer-events: auto; }
+    .modal > .panel { width: min(780px, 94vw); background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--glow); padding: 12px; }
+    .modal .modal-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .modal .modal-body { display: grid; gap: 10px; }
+    .modal .grid-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 640px) { .modal .grid-cols { grid-template-columns: 1fr; } }
+
+    /* Scrollbars */
+    .messages::-webkit-scrollbar, .chat-list::-webkit-scrollbar { width: 10px; }
+    .messages::-webkit-scrollbar-thumb, .chat-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 8px; }
+    .messages::-webkit-scrollbar-track, .chat-list::-webkit-scrollbar-track { background: transparent; }
+
+    /* Role-specific message styling */
+    .msg.user { background: rgba(255,255,255,0.04); }
+    .msg.assistant { background: rgba(255,255,255,0.065); }
+
+    /* Copy button on code blocks */
+    .text pre { position: relative; }
+    .copy-btn {
+      position: absolute; top: 6px; right: 6px; font-size: 12px; padding: 4px 8px; border-radius: 6px;
+      background: rgba(255,255,255,0.12); border: 1px solid var(--border); color: var(--text); cursor: pointer;
+    }
+    .copy-btn:hover { filter: brightness(1.1); }
+
+    /* Better focus and disabled states */
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid rgba(255,255,255,0.25); outline-offset: 2px; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Improve textarea UX */
+    .composer textarea { overflow: hidden; }
+
+    /* Relax max-height for chat to fit better */
+    .chat { max-height: none; }
+  </style>
+</head>
+<body>
+  <!-- Анимированный фон с пузырьками -->
+  <div class="bubbles" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span><span></span>
+  </div>
+
+  <!-- Экран загрузки -->
+  <div id="loader" class="loader-overlay"><div class="spinner"></div></div>
+
+  <!-- Полупрозрачная подложка для бокового меню -->
+  <div id="sideOverlay" class="sidebar-overlay"></div>
+  <aside id="sidebar" class="sidebar" aria-label="Список чатов">
+    <h3>Чаты</h3>
+    <div class="side-actions">
+      <button id="openSettingsBtn" class="btn-ghost">Настройки</button>
+      <button id="newChatBtn">Новый</button>
+      <button id="renameChatBtn" class="btn-ghost">Переименовать</button>
+      <button id="deleteChatBtn" class="btn-danger">Удалить</button>
+    </div>
+    <div id="chatList" class="chat-list" role="listbox" aria-label="Список чатов"></div>
+  </aside>
+
+  <header>
+    <div class="row">
+      <div class="burger" id="burgerBtn" title="Список чатов"><div class="bar"></div></div>
+      <div class="brand">Чат с ИИ — Chutes AI /v1/chat/completions (stream)</div>
+    </div>
+    <div class="row">
+      <div id="status" class="hint" role="status" aria-live="polite"></div>
+    </div>
+  </header>
+
+  <section class="chat">
+    <div id="messages" class="messages"></div>
+    <div class="composer">
+      <textarea id="userInput" placeholder="Напишите сообщение... (Shift+Enter — новая строка, Enter — отправить)"></textarea>
+      <button id="sendBtn">Отправить</button>
+      <button id="stopBtn" class="btn-danger" disabled>Стоп</button>
+    </div>
+  </section>
+
+  <footer>
+    <div class="hint">
+      Эндпоинт: https://llm.chutes.ai/v1/chat/completions (stream=true). Заголовок Authorization: Bearer &lt;CHUTES_API_TOKEN&gt;.
+    </div>
+  </footer>
+
+  <!-- Settings Modal -->
+  <div id="settingsOverlay" class="modal-overlay"></div>
+  <div id="settingsModal" class="modal" aria-modal="true" role="dialog" aria-labelledby="settingsTitle">
+    <div class="panel">
+      <div class="modal-header">
+        <h3 id="settingsTitle">Настройки</h3>
+        <button id="settingsClose" class="btn-ghost" aria-label="Закрыть">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="grid-cols">
+          <div>
+            <label class="hint" for="apiToken">API токен</label>
+            <input id="apiToken" type="password" placeholder="CHUTES_API_TOKEN" aria-label="API токен" />
+            <label class="hint" style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+              <input id="toggleToken" type="checkbox" /> Показать токен
+            </label>
+          </div>
+          <div>
+            <label class="hint" for="model">Модель</label>
+            <select id="model" aria-label="Модель">
+              <option value="Qwen/Qwen3-8B">Qwen/Qwen3-8B</option>
+              <option value="Qwen/Qwen2.5-7B-Instruct">Qwen/Qwen2.5-7B-Instruct</option>
+              <option value="meta-llama/Llama-3.1-8B-Instruct">meta-llama/Llama-3.1-8B-Instruct</option>
+              <option value="mistralai/Mistral-7B-Instruct-v0.3">mistralai/Mistral-7B-Instruct-v0.3</option>
+            </select>
+          </div>
+          <div class="range-wrap">
+            <label for="temperature" class="hint" style="white-space:nowrap;">Температура: <span id="temperatureVal">0.7</span></label>
+            <input id="temperature" type="range" min="0" max="2" step="0.1" value="0.7" />
+          </div>
+          <div>
+            <label class="hint" for="maxTokens">Максимум токенов</label>
+            <input id="maxTokens" type="number" min="1" step="1" value="1024" placeholder="Max tokens" aria-label="Максимум токенов" />
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+          <button id="saveToken">Сохранить</button>
+          <button id="clearChat" class="btn-danger">Очистить чат</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Markdown + sanitize + highlight.js -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/common.min.js"></script>
+
+  <script>
+    const DEFAULT_TOKEN = 'cpk_518b94764bb9438bb39292f59acd2d46.9d53560d744755e48885754ebab98286.k0GPpJK5ZmbD5xtY5TB7zJdQL31hxuSa';
+    const STORAGE_SETTINGS_KEY = 'chutes_settings';
+    const STORAGE_CHATS_KEY = 'chutes_chat_state';
+
+    // DOM
+    const els = {
+      token: document.getElementById('apiToken'),
+      model: document.getElementById('model'),
+      temperature: document.getElementById('temperature'),
+      temperatureVal: document.getElementById('temperatureVal'),
+      maxTokens: document.getElementById('maxTokens'),
+      saveToken: document.getElementById('saveToken'),
+      clearChat: document.getElementById('clearChat'),
+      status: document.getElementById('status'),
+      messages: document.getElementById('messages'),
+      input: document.getElementById('userInput'),
+      send: document.getElementById('sendBtn'),
+      stop: document.getElementById('stopBtn'),
+      burger: document.getElementById('burgerBtn'),
+      sidebar: document.getElementById('sidebar'),
+      sideOverlay: document.getElementById('sideOverlay'),
+      chatList: document.getElementById('chatList'),
+      newChatBtn: document.getElementById('newChatBtn'),
+      renameChatBtn: document.getElementById('renameChatBtn'),
+      deleteChatBtn: document.getElementById('deleteChatBtn'),
+      loader: document.getElementById('loader'),
+      openSettingsBtn: document.getElementById('openSettingsBtn'),
+      settingsModal: document.getElementById('settingsModal'),
+      settingsOverlay: document.getElementById('settingsOverlay'),
+      settingsClose: document.getElementById('settingsClose'),
+      toggleToken: document.getElementById('toggleToken'),
+    };
+
+    // App state
+    const app = {
+      controller: null,
+      streaming: false,
+      state: { activeId: '', chats: {} },
+    };
+
+    // Utils
+    function setStatus(text, timeout) {
+      els.status.textContent = text || '';
+      if (timeout) setTimeout(() => (els.status.textContent = ''), timeout);
+    }
+
+    function scrollToBottom() { els.messages.scrollTop = els.messages.scrollHeight; }
+
+    function throttle(fn, interval) {
+      let last = 0, t;
+      return (...args) => {
+        const now = Date.now();
+        const rem = interval - (now - last);
+        if (rem <= 0) { last = now; fn(...args); }
+        else { clearTimeout(t); t = setTimeout(() => { last = Date.now(); fn(...args); }, rem); }
+      };
+    }
+
+    function sanitizeHTML(html) { return DOMPurify.sanitize(html); }
+
+    function renderMarkdownTo(el, markdown) {
+      // Configure marked for safe code blocks and line breaks
+      marked.setOptions({ breaks: true, gfm: true });
+      const raw = marked.parse(markdown || '');
+      el.innerHTML = sanitizeHTML(raw);
+      const hasHLJS = window.hljs && typeof hljs.highlightElement === 'function';
+      if (hasHLJS) { el.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block)); }
+      enhanceCodeBlocks(el);
+    }
+
+    // Enhance code blocks with copy buttons and textarea auto-resize
+    function enhanceCodeBlocks(scopeEl) {
+      const pres = scopeEl.querySelectorAll('pre');
+      pres.forEach((pre) => {
+        if (pre.dataset.enhanced === '1') return;
+        pre.dataset.enhanced = '1';
+        pre.style.position = pre.style.position || 'relative';
+        const btn = document.createElement('button');
+        btn.className = 'copy-btn';
+        btn.type = 'button';
+        btn.textContent = 'Копировать';
+        btn.addEventListener('click', () => {
+          const code = pre.querySelector('code');
+          const text = code ? code.innerText : pre.innerText;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+              const old = btn.textContent;
+              btn.textContent = 'Скопировано';
+              setTimeout(() => (btn.textContent = old), 1200);
+            }).catch(() => {});
+          }
+        });
+        pre.appendChild(btn);
+      });
+    }
+
+    function autoResizeTextarea(el) {
+      if (!el) return;
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 220) + 'px';
+    }
+
+    function createMessageNode(role, content, useMarkdown = false) {
+      const wrap = document.createElement('div');
+      wrap.className = 'msg ' + role;
+      const avatar = document.createElement('div');
+      avatar.className = 'avatar' + (role === 'user' ? ' user' : '');
+      avatar.textContent = role === 'user' ? 'U' : 'A';
+      const body = document.createElement('div');
+      const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = role === 'user' ? 'Вы' : 'Модель';
+      const text = document.createElement('div'); text.className = 'text';
+      if (useMarkdown) renderMarkdownTo(text, content || ''); else text.textContent = content || '';
+      body.appendChild(meta); body.appendChild(text);
+      wrap.appendChild(avatar); wrap.appendChild(body);
+      return { wrap, text, setMarkdown: (md) => renderMarkdownTo(text, md) };
+    }
+
+    function appendUserMessage(content) {
+      const node = createMessageNode('user', content, false);
+      els.messages.appendChild(node.wrap); scrollToBottom(); return node;
+    }
+
+    function appendAssistantMessage() {
+      const node = createMessageNode('assistant', '', true);
+      els.messages.appendChild(node.wrap); scrollToBottom(); return node;
+    }
+
+    function showError(errorText) {
+      const node = document.createElement('div'); node.className = 'hint error'; node.textContent = errorText;
+      els.messages.appendChild(node); scrollToBottom();
+    }
+
+    function setUIBusy(busy) {
+      els.send.disabled = busy; els.stop.disabled = !busy; els.input.disabled = busy; els.model.disabled = busy; els.maxTokens.disabled = busy; els.temperature.disabled = busy;
+    }
+
+    // Settings
+    function loadSettings() {
+      let saved = localStorage.getItem(STORAGE_SETTINGS_KEY);
+      if (saved) {
+        try {
+          const { token, model, temperature, maxTokens } = JSON.parse(saved);
+          if (token) els.token.value = token; else els.token.value = DEFAULT_TOKEN; // предзаполняем
+          if (model) els.model.value = model;
+          if (typeof temperature === 'number') { els.temperature.value = String(temperature); els.temperatureVal.textContent = Number(temperature).toFixed(1); }
+          if (maxTokens) els.maxTokens.value = maxTokens;
+        } catch { els.token.value = DEFAULT_TOKEN; }
+      } else {
+        // Нет сохранений — применяем токен по умолчанию и сохраняем
+        els.token.value = DEFAULT_TOKEN;
+        saveSettings();
+      }
+    }
+
+    function saveSettings() {
+      const obj = {
+        token: els.token.value.trim(),
+        model: els.model.value,
+        temperature: parseFloat(els.temperature.value),
+        maxTokens: parseInt(els.maxTokens.value, 10) || 1024,
+      };
+      localStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify(obj));
+      setStatus('Настройки сохранены', 1200);
+    }
+
+    // Chats
+    function newChatId() { return 'chat-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7); }
+
+    function loadChats() {
+      const raw = localStorage.getItem(STORAGE_CHATS_KEY);
+      if (raw) {
+        try { app.state = JSON.parse(raw); } catch { app.state = { activeId: '', chats: {} }; }
+      }
+      if (!app.state || typeof app.state !== 'object') app.state = { activeId: '', chats: {} };
+      if (!app.state.chats || typeof app.state.chats !== 'object') app.state.chats = {};
+      if (!app.state.activeId || !app.state.chats[app.state.activeId]) {
+        const id = newChatId();
+        app.state.activeId = id;
+        app.state.chats[id] = { id, title: 'Новый чат', messages: [] };
+        saveChats();
+      }
+    }
+
+    function saveChats() { localStorage.setItem(STORAGE_CHATS_KEY, JSON.stringify(app.state)); }
+
+    function getActiveChat() { return app.state.chats[app.state.activeId]; }
+
+    function renderChatList() {
+      els.chatList.innerHTML = '';
+      const ids = Object.keys(app.state.chats);
+      ids.sort((a, b) => (a > b ? -1 : 1)); // по времени создания
+      for (const id of ids) {
+        const chat = app.state.chats[id];
+        const item = document.createElement('div');
+        item.className = 'chat-item' + (id === app.state.activeId ? ' active' : '');
+        const title = document.createElement('div'); title.className = 'chat-title'; title.textContent = chat.title || 'Без названия';
+        item.appendChild(title);
+        item.addEventListener('click', () => { switchChat(id); });
+        els.chatList.appendChild(item);
+      }
+    }
+
+    function switchChat(id) {
+      if (app.streaming && app.controller) { app.controller.abort(); }
+      app.state.activeId = id; saveChats();
+      renderChatList(); renderActiveChatMessages(); setStatus('Открыт чат', 800);
+    }
+
+    function renderActiveChatMessages() {
+      els.messages.innerHTML = '';
+      const chat = getActiveChat();
+      if (!chat || !Array.isArray(chat.messages)) return;
+      if (chat.messages.length === 0) {
+        const n = createMessageNode('assistant', 'Подсказка: введите токен (если не заполнен), затем задайте вопрос. Например: "Расскажи историю на 250 слов"', false);
+        n.wrap.querySelector('.meta').textContent = 'Подсказка';
+        els.messages.appendChild(n.wrap);
+        return;
+      }
+      for (const m of chat.messages) {
+        if (m.role === 'assistant') {
+          const node = createMessageNode('assistant', m.content, true);
+          els.messages.appendChild(node.wrap);
+        } else {
+          const node = createMessageNode(m.role, m.content, false);
+          els.messages.appendChild(node.wrap);
+        }
+      }
+      scrollToBottom();
+    }
+
+    function createNewChat() {
+      const id = newChatId();
+      app.state.chats[id] = { id, title: 'Новый чат', messages: [] };
+      app.state.activeId = id; saveChats(); renderChatList(); renderActiveChatMessages();
+    }
+
+    function renameActiveChat() {
+      const chat = getActiveChat(); if (!chat) return;
+      const name = prompt('Новое название чата:', chat.title || 'Без названия');
+      if (name && name.trim()) { chat.title = name.trim(); saveChats(); renderChatList(); }
+    }
+
+    function deleteActiveChat() {
+      const chat = getActiveChat(); if (!chat) return;
+      const ids = Object.keys(app.state.chats);
+      if (!confirm(`Удалить чат "${chat.title || 'Без названия'}"?`)) return;
+      delete app.state.chats[chat.id];
+      if (Object.keys(app.state.chats).length === 0) {
+        const id = newChatId();
+        app.state.chats[id] = { id, title: 'Новый чат', messages: [] };
+        app.state.activeId = id;
+      } else {
+        app.state.activeId = Object.keys(app.state.chats)[0];
+      }
+      saveChats(); renderChatList(); renderActiveChatMessages();
+    }
+
+    // Messaging
+    async function sendMessage() {
+      const token = els.token.value.trim();
+      if (!token) { setStatus('Укажите токен', 2000); return; }
+
+      const content = els.input.value.trim();
+      if (!content) return;
+
+      // UI
+      setUIBusy(true); setStatus('Отправка запроса...');
+
+      // State
+      const chat = getActiveChat();
+      chat.messages.push({ role: 'user', content });
+      if (!chat.title || chat.title === 'Новый чат') {
+        chat.title = content.slice(0, 30) + (content.length > 30 ? '…' : '');
+      }
+      saveChats();
+      appendUserMessage(content);
+      els.input.value = '';
+      renderChatList();
+
+      const payload = {
+        model: els.model.value || 'Qwen/Qwen3-8B',
+        messages: chat.messages.map(m => ({ role: m.role, content: m.content })),
+        stream: true,
+        max_tokens: parseInt(els.maxTokens.value, 10) || 1024,
+        temperature: parseFloat(els.temperature.value) || 0.7,
+      };
+
+      const controller = new AbortController(); app.controller = controller; app.streaming = true;
+      const assistantNode = appendAssistantMessage();
+
+      // Throttled renderer for streaming markdown
+      let assistantContent = '';
+      const updateView = throttle(() => { assistantNode.setMarkdown(assistantContent); scrollToBottom(); }, 80);
+
+      try {
+        const res = await fetch('https://llm.chutes.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        if (!res.ok || !res.body) {
+          const errText = await safeReadText(res);
+          throw new Error(`HTTP ${res.status} ${res.statusText}${errText ? ' — ' + errText : ''}`);
+        }
+        setStatus('Получение ответа...');
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const events = buffer.split(/\n\n/); buffer = events.pop() || '';
+          for (const ev of events) {
+            const lines = ev.split(/\n/).map(l => l.trim()).filter(Boolean);
+            for (const line of lines) {
+              if (!line.startsWith('data:')) continue;
+              const data = line.slice(5).trim();
+              if (data === '[DONE]') { buffer = ''; break; }
+              try {
+                const json = JSON.parse(data);
+                const choice = (json.choices && json.choices[0]) || {};
+                const delta = (choice.delta && choice.delta.content) || (choice.message && choice.message.content) || '';
+                if (delta) { assistantContent += delta; updateView(); }
+              } catch (e) { console.warn('Не удалось распарсить событие:', data); }
+            }
+          }
+        }
+
+        // Финализация
+        if (assistantContent) {
+          chat.messages.push({ role: 'assistant', content: assistantContent });
+          saveChats();
+          assistantNode.setMarkdown(assistantContent);
+        }
+        setStatus('Готово', 900);
+      } catch (err) {
+        if (err.name === 'AbortError') setStatus('Запрос остановлен', 1200);
+        else { console.error(err); showError('Ошибка: ' + (err && err.message ? err.message : String(err))); setStatus('Ошибка', 2000); }
+      } finally {
+        setUIBusy(false); app.controller = null; app.streaming = false;
+      }
+    }
+
+    function stopStreaming() { if (app.controller) app.controller.abort(); }
+
+    function clearActiveChat() {
+      const chat = getActiveChat(); if (!chat) return;
+      chat.messages = []; saveChats(); els.messages.innerHTML = ''; renderActiveChatMessages(); setStatus('Чат очищен', 1000);
+    }
+
+    async function safeReadText(res) { try { return await res.text(); } catch { return ''; } }
+
+    // Sidebar open/close
+    function openSidebar(open) {
+      if (open) { els.sidebar.classList.add('open'); els.sideOverlay.classList.add('open'); }
+      else { els.sidebar.classList.remove('open'); els.sideOverlay.classList.remove('open'); }
+    }
+
+    function openSettings(open) {
+      if (open) {
+        els.settingsModal.classList.add('open');
+        els.settingsOverlay.classList.add('open');
+        setTimeout(() => { if (els.token) els.token.focus(); }, 0);
+      } else {
+        els.settingsModal.classList.remove('open');
+        els.settingsOverlay.classList.remove('open');
+      }
+    }
+
+    // Init
+    (function init() {
+      loadSettings();
+      loadChats();
+      renderChatList();
+      renderActiveChatMessages();
+
+      // loader hide a bit after DOM ready
+      window.addEventListener('load', () => setTimeout(() => els.loader.classList.add('hidden'), 400));
+
+      // Events
+      els.saveToken.addEventListener('click', saveSettings);
+      els.model.addEventListener('change', saveSettings);
+      els.temperature.addEventListener('input', () => { els.temperatureVal.textContent = parseFloat(els.temperature.value).toFixed(1); });
+      els.temperature.addEventListener('change', saveSettings);
+      els.maxTokens.addEventListener('change', saveSettings);
+
+      els.input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (!els.send.disabled) sendMessage(); }
+      });
+      els.input.addEventListener('input', () => autoResizeTextarea(els.input));
+      if (els.input) autoResizeTextarea(els.input);
+      els.send.addEventListener('click', sendMessage);
+      els.stop.addEventListener('click', stopStreaming);
+      els.clearChat.addEventListener('click', clearActiveChat);
+
+      els.burger.addEventListener('click', () => openSidebar(true));
+      els.sideOverlay.addEventListener('click', () => openSidebar(false));
+
+      if (els.toggleToken) els.toggleToken.addEventListener('change', () => { els.token.type = els.toggleToken.checked ? 'text' : 'password'; });
+
+      if (els.openSettingsBtn) els.openSettingsBtn.addEventListener('click', () => openSettings(true));
+      if (els.settingsOverlay) els.settingsOverlay.addEventListener('click', () => openSettings(false));
+      if (els.settingsClose) els.settingsClose.addEventListener('click', () => openSettings(false));
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') openSettings(false); });
+
+      els.newChatBtn.addEventListener('click', () => { createNewChat(); openSidebar(false); });
+      els.renameChatBtn.addEventListener('click', () => { renameActiveChat(); });
+      els.deleteChatBtn.addEventListener('click', () => { deleteActiveChat(); openSidebar(false); });
+    })();
+  </script>
+</body>
+</html>
