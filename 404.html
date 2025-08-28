@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>404 — Страница не найдена</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0a0a;
+      --bg-secondary: rgba(16,16,16,0.75);
+      --surface-1: #121212;
+      --surface-2: #1a1a1a;
+      --surface-3: #222222;
+      --text-primary: #ffffff;
+      --text-secondary: #c8c8c8;
+      --text-muted: #8a8a8a;
+      --border: rgba(255,255,255,0.15);
+      --glow: 0 0 24px rgba(255,255,255,0.06), 0 0 60px rgba(255,255,255,0.04);
+      --radius-lg: 16px;
+      --radius-md: 12px;
+      --transition: 260ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: radial-gradient(1200px 600px at 70% -10%, rgba(255,255,255,0.06), transparent 60%), var(--bg-primary);
+      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+      padding: 12px;
+      overflow: hidden;
+    }
+
+    /* Параллакс-слои (обратный параллакс как в Destiny 2) */
+    .parallax {
+      position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0;
+    }
+    .layer {
+      position: absolute; will-change: transform;
+      filter: blur(0.2px);
+      opacity: 0.22;
+      mix-blend-mode: screen;
+    }
+    .layer.blob { border-radius: 50%; }
+    .layer.glow { box-shadow: var(--glow); border-radius: 24px; }
+    /* Любой элемент с data-depth участвует в параллаксе */
+    [data-depth] { will-change: transform; }
+
+    /* Примерные слои */
+    .l1 { width: 520px; height: 520px; left: -120px; top: 40%; background: radial-gradient(circle at 40% 40%, rgba(255,255,255,0.16), rgba(255,255,255,0)); }
+    .l2 { width: 240px; height: 240px; left: 60%; top: 10%; background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.18), rgba(255,255,255,0)); }
+    .l3 { width: 340px; height: 340px; left: 78%; top: 64%; background: radial-gradient(circle at 60% 40%, rgba(255,255,255,0.14), rgba(255,255,255,0)); }
+    .l4 { width: 180px; height: 90px; left: 22%; top: 16%; background: linear-gradient(90deg, rgba(255,255,255,0.14), rgba(255,255,255,0)); }
+
+    header, footer {
+      position: relative; z-index: 2;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 12px;
+      box-shadow: var(--glow);
+      backdrop-filter: blur(10px);
+    }
+    header .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .brand { font-weight: 800; letter-spacing: 0.3px; white-space: nowrap; }
+
+    main { position: relative; z-index: 1; display: grid; place-items: center; }
+    .card {
+      width: min(880px, 95vw);
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      text-align: center;
+      box-shadow: var(--glow);
+      backdrop-filter: blur(8px);
+    }
+
+    /* Новая анимация 404: сканлайны + свечение + мягкая деформация */
+    .code404 {
+      display: inline-flex; gap: clamp(10px, 3vw, 18px);
+      margin: 12px 0 14px;
+      position: relative;
+    }
+    .digit {
+      position: relative;
+      font-weight: 900;
+      font-size: clamp(72px, 16vw, 200px);
+      line-height: 0.9;
+      letter-spacing: -0.06em;
+      color: #f2f2f2;
+      text-shadow:
+        0 0 12px rgba(255,255,255,0.08),
+        0 0 28px rgba(255,255,255,0.06);
+      --skew: 0deg;
+      transform: skewX(var(--skew));
+      transition: transform var(--transition), text-shadow var(--transition);
+      overflow: hidden;
+    }
+    /* Сканлайн */
+    .digit::after {
+      content: "";
+      position: absolute; left: 0; right: 0; top: -120%; bottom: 0;
+      background: linear-gradient(
+        to bottom,
+        rgba(255,255,255,0) 0%,
+        rgba(255,255,255,0.16) 15%,
+        rgba(255,255,255,0) 32%
+      );
+      mix-blend-mode: screen;
+      animation: scan 3.2s ease-in-out infinite;
+    }
+    .digit:nth-child(2)::after { animation-delay: .5s; }
+    @keyframes scan {
+      0% { transform: translateY(-120%); }
+      50% { transform: translateY(40%); }
+      100% { transform: translateY(120%); }
+    }
+    /* Пульс свечения */
+    .code404:hover .digit {
+      text-shadow:
+        0 0 10px rgba(255,255,255,0.18),
+        0 0 30px rgba(255,255,255,0.12),
+        0 0 60px rgba(255,255,255,0.06);
+    }
+    /* Едва заметная рябь деформации при ховере */
+    .code404:hover .digit:nth-child(1) { --skew: -2deg; }
+    .code404:hover .digit:nth-child(2) { --skew:  2deg; }
+    .code404:hover .digit:nth-child(3) { --skew: -1deg; }
+
+    .subtitle { color: var(--text-muted); margin: 0 0 12px; font-size: 14px; }
+
+    /* Затемнённые сообщения */
+    .msg {
+      display: inline-block;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 12px 14px;
+      border-radius: 12px;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+      backdrop-filter: blur(4px);
+    }
+    .note { margin-top: 12px; font-size: 12px; color: var(--text-muted); }
+
+    .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+    .btn {
+      background: linear-gradient(135deg, rgba(255,255,255,0.16), rgba(255,255,255,0.08));
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: transform .06s ease-in-out, filter .2s ease-in-out, background .2s;
+      box-shadow: var(--glow);
+      text-decoration: none;
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+    .btn:active { transform: translateY(1px); }
+  </style>
+</head>
+<body>
+  <!-- Параллакс-слои -->
+  <div class="parallax" aria-hidden="true">
+    <div class="layer blob l1" data-depth="0.02"></div>
+    <div class="layer blob l2" data-depth="0.05"></div>
+    <div class="layer blob l3" data-depth="0.035"></div>
+    <div class="layer glow l4" data-depth="0.08"></div>
+  </div>
+
+  <header data-depth="0.015">
+    <div class="row">
+      <div class="brand">Mobius AI</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="card" data-depth="0.04" role="group" aria-labelledby="title404-label">
+      <div class="code404" id="title404" aria-label="404" tabindex="0" data-depth="0.08">
+        <span class="digit">4</span><span class="digit">0</span><span class="digit">4</span>
+      </div>
+      <div id="title404-label" class="subtitle">Страница не найдена или перемещена.</div>
+
+      <div class="msg">Эта страница недоступна. Проверьте адрес или вернитесь на главную.</div>
+
+      <div class="actions">
+        <a class="btn" href="index.html" aria-label="На главную">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M9 21V9h6v12"/></svg>
+          На главную
+        </a>
+        <button class="btn" onclick="history.back()" aria-label="Назад">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Назад
+        </button>
+      </div>
+
+      <div class="note msg" style="margin-top:16px;">Если вы попали сюда по ссылке — проверьте адрес или вернитесь на главную.</div>
+    </div>
+  </main>
+
+  <footer data-depth="0.02">
+    <div class="note">404 · Mobius AI</div>
+  </footer>
+
+  <script>
+    // Обратный параллакс от курсора: слои двигаются ПРОТИВ направления курсора
+    (function() {
+      // Параллакс для всех элементов, имеющих data-depth
+      const layers = Array.from(document.querySelectorAll('[data-depth]'));
+      let targetX = 0, targetY = 0, curX = 0, curY = 0; // плавное следование
+
+      function onMove(x, y) {
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+        const dx = (x - cx) / cx;   // -1..1
+        const dy = (y - cy) / cy;   // -1..1
+        // обратный параллакс: сдвигаем слои в противоположную сторону
+        targetX = -dx; targetY = -dy;
+      }
+
+      window.addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
+      window.addEventListener('touchmove', (e) => {
+        if (e.touches && e.touches[0]) onMove(e.touches[0].clientX, e.touches[0].clientY);
+      }, { passive: true });
+
+      function raf() {
+        // сглаживание движения
+        curX += (targetX - curX) * 0.08;
+        curY += (targetY - curY) * 0.08;
+        layers.forEach(layer => {
+          const depth = parseFloat(layer.dataset.depth || '0.02');
+          const tx = curX * (depth * 60); // масштаб параллакса
+          const ty = curY * (depth * 60);
+          layer.style.transform = `translate3d(${tx}px, ${ty}px, 0)`;
+        });
+        requestAnimationFrame(raf);
+      }
+      raf();
+    })();
+  </script>
+</body>
+</html>
